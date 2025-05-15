@@ -1,27 +1,39 @@
 import express from "express";
 import User from "../model/user.model.js";
+import createtoken from "../jwt/jwtToken.js"
 
 // Signup
 export const signup = async (req, res) => {
     try {
         const { name, email, password, confirmPassword, phoneNumber } = req.body;
+
         if (password !== confirmPassword) {
             return res.status(400).json({ message: "Passwords do not match" });
         }
+
         const user = await User.findOne({ email });
         if (user) {
             return res.status(400).json({ message: "Email already exists" });
         }
-
-        const newUser = new User({
-            name,
+        const newUser = new User({ name, 
             email,
-            password ,
-            confirmPassword,
-            phoneNumber,
-        });
+             password,
+             confirmPassword,
+             phoneNumber });
+
         await newUser.save();
-        res.status(201).json({ message: "User registered successfully" });
+
+        createtoken(newUser._id, res);
+
+        res.status(201).json({
+            message: "User registered successfully",
+            user: {
+                _id: newUser._id,
+                name: newUser.name,
+                email: newUser.email,
+                phoneNumber: newUser.phoneNumber, 
+            },
+        });
 
     } catch (error) {
         console.error("Signup Error:", error);
@@ -30,29 +42,37 @@ export const signup = async (req, res) => {
 };
 
 // Login user
+
+
 export const login = async (req, res) => {
-  try {
-      const { email, password } = req.body;
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
+        }
 
         const user = await User.findOne({ email });
-
         if (!user) {
             return res.status(400).json({ message: "User does not exist" });
         }
 
-        if (password !== user.password) {
-            return res.status(400).json({ message: "invaild email and password" });
-        }
+        createtoken(user._id, res);
 
-        return res.status(200).json({ message: "User logged in successfully" });
+        return res.status(200).json({
+            message: "User logged in successfully",
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+            },
+        });
 
     } catch (error) {
-        console.error( error);
-        res.status(500).json({ message: "Internal server error" }); 
+        console.error("Login Error:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
 };
-
-
 // Get Users 
 export const getUser = async (req, res) => {
     try {
@@ -64,9 +84,10 @@ export const getUser = async (req, res) => {
     }
 };
  
+ 
 // Get Single User
 export const singleUser = async (req, res) => {
-    const { id } = req.params;
+    const { id } = req.params;  
     try {
         const singleUserData = await User.findOne({ _id: id });
         res.status(200).json(singleUserData);
@@ -75,9 +96,9 @@ export const singleUser = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
-
+ 
 // Delete User
-export const deleteUser = async (req, res) => {
+export const deleteUser = async (req, res) => { 
     const { id } = req.params;
     try {
         const deleteUserData = await User.findByIdAndDelete(id);
@@ -98,6 +119,9 @@ export const updateUser = async (req, res) => {
             id,
             { name, email, password, confirmPassword, phoneNumber },
             { new: true }
+
+
+
         );
  
         res.status(200).json(updatedUser);
